@@ -1,0 +1,41 @@
+# environment settings
+seed: 0
+precision: fp32 
+strategy: ddp 
+gradient_clip_val: 0.
+
+# data arguments
+fold: single
+env_name: null # should be specified
+
+num_workers: 0 
+global_batch_size: 16 # For single GPU 
+shot: 4 
+num_train_trajs: 5
+num_eval_trajs: 5
+num_eval_episodes: 20
+
+# training arguments
+n_steps: 10000 
+n_schedule_steps: -1
+optimizer: adamw
+lr: 0.0002
+
+lr_schedule: constant 
+lr_warmup: 1000
+lr_warmup_scale: 0.
+schedule_from: 0
+weight_decay: 0.
+lr_decay_degree: 0.9
+drop_rate: 0.1
+
+morphology_tuning: null
+
+# logging arguments
+log_dir: FINETUNE
+save_dir: FINETUNE
+load_dir: TRAIN
+val_iter: 1000 
+monitor: summary/mtest_test
+monitor_mode: max
+load_step: -1 

@@ -1,0 +1,56 @@
+# environment settings
+seed: 0
+precision: bf16
+strategy: ddp 
+gradient_clip_val: 5.
+
+# dataset arguments
+env_name: null
+
+num_train_trajs: -1
+num_eval_trajs: 3
+
+shot: 4
+history_size: 10
+window_size: 10
+max_n_joints: 10
+
+# dataloader arguments
+num_workers: 8
+global_batch_size: 64
+num_eval_episodes: 8
+
+# model arguments
+hidden_dim: 512
+n_morph_blocks: 6
+n_task_blocks: 6
+n_attn_heads: 4
+
+morphology_lora_rank: 16 
+task_lora_rank: 16
+morphology_layerscale: 1.0 
+task_layerscale: 1.0
+drop_rate: 0.1
+
+# training arguments
+n_steps: 200000
+n_schedule_steps: -1
+optimizer: adamw
+lr: 0.0002
+lr_schedule: poly 
+lr_warmup: 1000
+lr_warmup_scale: 0.
+
+schedule_from: 0
+weight_decay: 0.
+lr_decay_degree: 0.9
+
+# logging arguments
+log_dir: TRAIN
+save_dir: TRAIN
+load_dir: TRAIN
+val_iter: 10000
+save_interval: 1
+monitor: summary/mtrain_test
+monitor_mode: max
+load_step: -1

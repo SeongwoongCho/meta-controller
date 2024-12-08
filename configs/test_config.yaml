@@ -1,0 +1,21 @@
+# environment settings
+seed: 0
+precision: fp32 
+strategy: single 
+gradient_clip_val: 0.
+
+# data arguments
+env_name: null # should be specified
+
+num_workers: 0 
+num_eval_trajs: null 
+num_eval_episodes: 20
+shot: 4 
+
+# logging arguments
+log_dir: TEST 
+save_dir: TEST 
+load_dir: FINETUNE 
+monitor: summary/mtest_test
+monitor_mode: max
+load_step: 0
