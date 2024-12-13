@@ -1,7 +1,7 @@
 # Meta-Controller
 
 This repository contains official pytorch implementation for [Meta-Controller: Few-Shot Imitation of Unseen Embodiments and Tasks in Continuous Control](https://openreview.net/pdf?id=M5D5rMwLjj) (NeurIPS 2024).
-![image-metacon](https://github.com/SeongwoongCho/universal_fsil/blob/camera_ready/MetaControllerOverview.png)
+![image-metacon](https://github.com/SeongwoongCho/meta-controller/blob/main/MetaControllerOverview.png)
 
 ## Setup
 
