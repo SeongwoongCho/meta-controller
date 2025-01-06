@@ -34,7 +34,7 @@ meta-controller
 ```
 ### Meta-trained Checkpoints
 We provide meta-trained checkpoints in [Here]().
-Please locate it under 'experiments/TRAIN/MetaController/checkpoints' 
+Please locate it under `experiments/TRAIN/MetaController/checkpoints`
 
 
 ## Usage
