@@ -20,7 +20,7 @@ class Learner:
     
     def get_train_loader(self):
         assert self.config.stage < 2
-        batch_size = self.config.global_batch_size  // self.n_devices
+        batch_size = self.config.global_batch_size // self.n_devices
         train_loader = DataLoader(self.train_data, batch_size=batch_size,
                                   shuffle=(self.n_devices == 1), pin_memory=True, drop_last=True, num_workers=self.config.num_workers)
         return train_loader
@@ -53,11 +53,6 @@ class Learner:
             valid_states = torch.load(f"DMCDATA/VALIDATIONSTATES/{morphology}_{task}_states.pt")
             valid_rawobs = torch.load(f"DMCDATA/VALIDATIONSTATES/{morphology}_{task}_rawobs.pt")
             
-            # handling legacy
-            if valid_states.ndim == 3:
-                valid_states = valid_states[:, 0]
-                valid_rawobs = {k: v[:, 0] for k, v in valid_rawobs.items()}
-
             initial_states = [] 
             for i in range(self.config.num_eval_episodes):
                 initial_state = (valid_states[i], {key: valid_rawobs[key][i] for key in valid_rawobs.keys()})
