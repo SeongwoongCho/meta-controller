@@ -186,7 +186,7 @@ def set_directories(config, root_dir='experiments', exp_name='', log_dir='logs',
                     pass
             elif config.stage == 2 and config.result_postfix != '':
                 pass
-            elif not config.slurm:
+            else:
                 while True:
                     print(f'redundant experiment name! ({save_dir}) remove existing checkpoints? (y/n)')
                     inp = input()

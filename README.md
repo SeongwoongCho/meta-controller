@@ -5,7 +5,7 @@ This repository contains official pytorch implementation for [Meta-Controller: F
 
 ## Setup
 ### Dataset
-Prepare meta-training and downstream datasets (Replay buffers of DrQv2 agents) from [Here](https://drive.google.com/file/d/16SHG_AwqySJJ48frFuTksyCkMB8AsFNn/view?usp=sharing). The directory structure looks like:
+Prepare meta-training and downstream datasets (Replay buffers of DrQv2 agents) from [Here](https://drive.google.com/drive/folders/1OFfkNOTbb8fTrEzdz4sNM0UEIgnAqSrQ?usp=sharing). The directory structure looks like:
 ```
 
 meta-controller
@@ -32,10 +32,6 @@ meta-controller
 |   |
 |   |...
 ```
-### Meta-trained Checkpoints
-We provide meta-trained checkpoints in [Here]().
-Please locate it under 'experiments/TRAIN/MetaController/checkpoints' 
-
 
 ## Usage
 ### Meta-Training
