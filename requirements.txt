@@ -1,0 +1,7 @@
+torch==2.2.0
+pytorch_lightning==1.9.4
+pydantic==1.10.7
+mujoco==2.3.1
+dm-control==1.0.8
+gym==0.21.0
+deepspeed==0.8.3
