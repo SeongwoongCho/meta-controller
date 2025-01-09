@@ -11,7 +11,7 @@ Currently, error occurs in the evaluation loop. Please run the code with `-ne` o
 Since habana_framework library collides under pytorch_lightning<2.0, the libary versions on Gaudi-v2 implementation are different with CUDA-based implementation.
 Install all required libraries: 
 ```
-pip install -r requirements.txdt
+pip install -r requirements.txt
 ```
 
 ### Dataset
