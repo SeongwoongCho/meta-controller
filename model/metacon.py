@@ -303,79 +303,6 @@ class ControlTransformer(BaseModule):
         return x
 
 
-class MorphTaskTransformer(nn.Module):
-    def __init__(self, config, num_joint_list, num_global_list, num_tasks):
-        super().__init__()
-        self.obs_morphology_transformer = ObsMorphologyTransformer(config, num_joint_list, num_global_list)
-        self.act_morphology_transformer = ActMorphologyTransformer(config, num_joint_list, num_global_list)
-        self.task_transformer = ControlTransformer(config, num_tasks)
-        self.act_head = nn.Sequential(nn.Linear(config.hidden_dim, 1), nn.Tanh())
-
-    def morphology_specific_parameters(self):
-        for p in self.obs_morphology_transformer.morphology_specific_parameters():
-            yield p
-        for p in self.act_morphology_transformer.morphology_specific_parameters():
-            yield p
-    
-    def morphology_specific_parameter_names(self):
-        morphology_specific_parameters = [id(p) for p in self.morphology_specific_parameters()]
-        names = []
-        for n, p in self.named_parameters():
-            if id(p) in morphology_specific_parameters:
-                names.append(n)
-        return names
-    
-    def task_specific_parameters(self):
-        return self.task_transformer.task_specific_parameters()
-    
-    def task_specific_parameter_names(self):
-        task_specific_parameters = [id(p) for p in self.task_specific_parameters()]
-        names = []
-        for n, p in self.named_parameters():
-            if id(p) in task_specific_parameters:
-                names.append(n)
-        return names
-   
-    def forward(self, data):
-        '''
-        [Input]
-        data:
-            obs : (B, T, J, d_o) # slide, hinge, and global observations
-            act: (B, T, J, d_a) # slide, hinge, and global action values
-
-            slide_mask: (B, T, J) # True if slide
-            hinge_mask: (B, T, J) # True if hinge
-            global_mask: (B, T, J) # True if global
-
-            act_mask: (B, T, J) # True if actuable
-            morph_mask: (B, J, J) # (i, j) is True if i-th and j-th joints are morphologically connected
-            task_mask: (B, J, T, T) # (i, j) is True if i-th and j-th time steps are task-related
-
-            m_idx: (B,) # morphology index
-            t_idx: (B,) # task index
-
-        [Output]
-        pred:
-            act_pred: (B, T, J, d_a) # predicted action values
-            act_target: (B, T, J, d_a) # target action values -- optional (else None)
-        '''
-        # morphology encoding
-        x = self.obs_morphology_transformer(data)
-        y = self.act_morphology_transformer(data)
-
-        # task encoding
-        x = self.task_transformer(data, x, y, encode_actuable_only=True)
-
-        # decode action
-        x = self.act_head(x)
-
-        pred = {
-            'act_pred': x,
-        }
-
-        return pred
-
-
 class CrossAttention(nn.Module):
     '''
     Multi-Head Cross-Attention layer for Matching
@@ -466,6 +393,7 @@ class MetaController(BaseModule):
         self.matching_module = CrossAttention(config.hidden_dim, num_heads=config.n_attn_heads)
         
         self.act_tokenizer = nn.Linear(1, config.hidden_dim)
+        
         self.act_head = nn.Sequential(nn.Linear(config.hidden_dim, 1), nn.Tanh())
         self.reset_support()
 
@@ -496,7 +424,8 @@ class MetaController(BaseModule):
         # reshape data for matching
         self.K = rearrange(x_S, '(B N) T J d -> (B J) (N T) d', N=N)
         self.V = rearrange(y_S, '(B N) T J d -> (B J) (N T) d', N=N)
-
+    
+    @torch.no_grad()
     def predict_query(self, data_Q):
         assert self.K is not None and self.V is not None, 'Support data must be encoded first'
 

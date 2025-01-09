@@ -1,6 +1,5 @@
 import random
 import numpy as np
-
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
@@ -492,8 +491,8 @@ class DMCTestEnvironment(DMC):
 
     def step(self, action):
         if isinstance(action, torch.Tensor):
-            action = action.float().cpu().numpy()
-
+            action = action.clone().float().cpu().numpy()
+        
         if action.ndim == 4: # B, T, J, 1
             assert action.shape[0] == 1 and action.shape[3] == 1
             action = action[0, -1, :, 0]

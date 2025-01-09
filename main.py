@@ -1,9 +1,20 @@
 import os
 os.environ['MUJOCO_GL'] = 'egl'
 
-import pytorch_lightning as pl
+# gaudi-speicfic-impl: set eager mode
+os.environ['PT_HPU_LAZY_MODE'] = '0'
+os.environ['PT_HPU_MAX_COMPOUND_OP_SIZE'] = '1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+import lightning.pytorch as pl
 import torch
 import warnings
+
+# gaudi-specific-impl
+import lightning_habana
+import habana_frameworks.torch.gpu_migration
+import habana_frameworks.torch.core as htcore
+import habana_frameworks.torch.hpu as hthpu
 
 from args import parse_args
 from train.train_utils import configure_experiment, load_model, print_configs
@@ -41,13 +52,14 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         logger=logger,
         default_root_dir=save_dir,
-        accelerator='gpu',
+        accelerator='hpu', # gaudi-specific impl
         max_epochs=max_epochs,
         log_every_n_steps=-1,
         num_sanity_val_steps=0,
         callbacks=callbacks,
         benchmark=True,
-        devices=torch.cuda.device_count(),
+        devices=1, # gaudi-specific impl
+        # devices=hthpu.device_count(), # gaudi-specific impl
         strategy=strategy,
         precision=precision,
         profiler=profiler,

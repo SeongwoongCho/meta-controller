@@ -18,7 +18,7 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelSummary 
 
 # gaudi-specific mpl
-from lightning_habana.pytorch.strategies import HPUDDPStrategy, HPUDeepSpeedStrategy
+from lightning_habana.pytorch.strategies import HPUDDPStrategy, SingleHPUStrategy, HPUDeepSpeedStrategy
 from lightning_habana.pytorch.plugins import HPUCheckpointIO, HPUPrecisionPlugin, HPUDeepSpeedPrecisionPlugin
 from lightning_habana.pytorch.profiler import HPUProfiler
 
@@ -47,10 +47,9 @@ def configure_experiment(config, model, is_rank_zero=True):
     # create profiler -- gaudi-specific impl
     profiler = HPUProfiler(log_dir) if config.profile_mode else None
         
-    # parse precision -- gaudi-specific impl
+    # parse precision
     precision = int(config.precision.strip('fp')) if config.precision in ['fp16', 'fp32'] else config.precision
-    precision = f'{precision}-true' if 'bf16' not in precision else precision
-
+        
     # choose accelerator
     strategy = set_strategy(config, precision)
 
@@ -515,17 +514,16 @@ def load_model(config, verbose=True):
 
         
 class CustomProgressBar(TQDMProgressBar):
-    def __init__(self, rescale_validation_batches=1, initial_train_batch_idx=0):
+    def __init__(self, rescale_validation_batches=1):
         super().__init__()
         self.rescale_validation_batches = rescale_validation_batches
-        self.initial_train_batch_idx = initial_train_batch_idx
 
     def init_train_tqdm(self):
         """Override this to customize the tqdm bar for training."""
         bar = tqdm.tqdm(
             desc="Training",
             bar_format="{desc:<5}{percentage:3.0f}%|{bar:10}{r_bar}",
-            initial=self.initial_train_batch_idx,
+            initial=self.train_batch_idx,
             position=(2 * self.process_position),
             disable=self.is_disabled,
             leave=True,

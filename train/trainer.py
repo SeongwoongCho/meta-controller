@@ -1,10 +1,11 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 import torch.distributed
 import torchvision.transforms as T
 import deepspeed
 import os
+import habana_frameworks.torch.hpu as hthpu
 from lightning_fabric.utilities.seed import seed_everything
 from torchvision.utils import make_grid
 from einops import rearrange
@@ -16,14 +17,14 @@ from train.visualize import color_frame
 from train.learner import Learner 
 from model.metacon import MetaController 
 
- 
+
 class LightningTrainWrapper(pl.LightningModule):
     def __init__(self, config, verbose=True):
         import warnings; warnings.filterwarnings('ignore')
         super().__init__()
         self.config = config
         self.verbose = verbose
-        self.n_devices = torch.cuda.device_count()
+        self.n_devices = hthpu.device_count() # gaudi-specific impl
         self.toten = T.ToTensor()
 
         self.model = self.create_model()
@@ -77,7 +78,8 @@ class LightningTrainWrapper(pl.LightningModule):
     def setup(self, *args, **kwargs):
         super().setup(*args, **kwargs)
         
-        device_id = int(os.environ['CUDA_VISIBLE_DEVICES'].split(",")[self.local_rank]) 
+        # device_id = int(os.environ['HABANA_VISIBLE_MODULES'].split(",")[self.local_rank]) # gaudi-specific impl
+        device_id = 0
         os.environ['EGL_DEVICE_ID'] = f"{device_id}"
         os.environ['MUJOCO_EGL_DEVICE_ID'] = f"{device_id}"
 
@@ -109,14 +111,19 @@ class LightningTrainWrapper(pl.LightningModule):
             self.valid_tags = loader_tags
             self.valid_tasks = sum([[(loader_tag, key) for key in list(val_loader.keys())]
                                      for val_loader, loader_tag in zip(val_loaders_list, loader_tags)], [])
-            return sum([list(val_loader.values()) for val_loader in val_loaders_list], [])
+            all_val_loaders = sum([list(val_loader.values()) for val_loader in val_loaders_list], [])
+            self.validation_step_outputs = [[ ] for _ in range(len(all_val_loaders))]
+            return all_val_loaders
         
+        return []
+
     def test_dataloader(self):
         '''
         Prepare validation loaders.
         '''
         test_loader, tag = self.learner.get_val_loaders()        
         self.test_environment =  list(test_loader[0].keys())[0]       
+        self.test_step_outputs = []
         return test_loader[0][self.test_environment]
 
     def forward(self, data, *args, **kwargs):
@@ -180,7 +187,7 @@ class LightningTrainWrapper(pl.LightningModule):
     def play(self, env, initial_state, environment, n_steps=-1, render=True, render_size=(64, 64)):        
         # initialize environment
         obs = env.reset(initial_state=initial_state)
-        self.model.encode_support(to_device(env.support_data, device=torch.device("cuda")))
+        self.model.encode_support(to_device(env.support_data, device=self.device))
 
         steps = 0
         done = False
@@ -189,7 +196,7 @@ class LightningTrainWrapper(pl.LightningModule):
         traj_attn = []
 
         while not done:
-            data = to_device(obs, device=torch.device("cuda"))
+            data = to_device(obs, device=self.device)
             # forward model
             out = self.model.predict_query(data)
             act = out['act_pred']
@@ -229,7 +236,7 @@ class LightningTrainWrapper(pl.LightningModule):
     
 
     @torch.no_grad()
-    @torch.autocast(device_type="cuda", dtype=torch.float32)
+    @torch.autocast(device_type="hpu", dtype=torch.float32) # gaudi-speicifc impl: does not support autocasting
     def inference_play(self, env, batch_idx, dataloader_idx=0, render=True):
         '''
         Evaluate few-shot performance on validation dataset.
@@ -251,11 +258,15 @@ class LightningTrainWrapper(pl.LightningModule):
         
     @torch.no_grad()
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        return self.inference_play(batch, batch_idx, dataloader_idx, render=True)
+        traj = self.inference_play(batch, batch_idx, dataloader_idx, render=True)
+        self.validation_step_outputs[dataloader_idx].append(traj)
+        return traj
 
     @torch.no_grad()
     def test_step(self, batch, batch_idx):
-        return self.inference_play(batch, batch_idx)
+        traj = self.inference_play(batch, batch_idx)
+        self.test_step_outputs.append(traj)
+        return traj
 
     def all_gather_dict(self, x):
         if self.n_devices > 1:
@@ -263,7 +274,7 @@ class LightningTrainWrapper(pl.LightningModule):
         else:
             return x
 
-    def validation_epoch_end(self, validation_step_outputs):
+    def on_validation_epoch_end(self):
         '''
         Aggregate losses of all validation datasets and log them into tensorboard.
         '''
@@ -274,7 +285,10 @@ class LightningTrainWrapper(pl.LightningModule):
             avg_metric[valid_tag] = []
 
         if len(self.valid_tasks) == 1:
-            validation_step_outputs = [validation_step_outputs]
+            validation_step_outputs = [self.validation_step_outputs]
+        else:
+            validation_step_outputs = self.validation_step_outputs
+
         for tag_idx, metrics in enumerate(validation_step_outputs):
             valid_tag, (morphology, task) = self.valid_tasks[tag_idx]
 
@@ -329,6 +343,10 @@ class LightningTrainWrapper(pl.LightningModule):
             rank_zero_only=True
         )
 
+        # reset validation_step_outputs
+        self.validation_step_outputs.clear()
+        self.validation_step_outputs = [[ ] for _ in range(len(self.valid_tags))]
+
     def save_gif_from_tensor(self, vid_tensor, save_dir, fps=30):
         # vid_tensor: (T, C, H, W)
         topil = T.ToPILImage() 
@@ -351,12 +369,13 @@ class LightningTrainWrapper(pl.LightningModule):
 
         return play_results
 
-    def test_epoch_end(self, test_step_outputs):
+    def on_test_epoch_end(self):
         '''
         Aggregate losses of all validation datasets and log them into tensorboard.
         '''
-        self.save_traj(test_step_outputs, self.test_environment, log_to_tb=True)
-    
+        self.save_traj(self.test_step_outputs, self.test_environment, log_to_tb=True)
+        self.test_step_outputs.clear() # free memory
+
     def save_traj(self, test_step_outputs , environment, ptf='', log_to_tb=False):
         if isinstance(test_step_outputs, dict):
             all_states = test_step_outputs['states']

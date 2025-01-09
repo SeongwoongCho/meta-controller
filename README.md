@@ -1,9 +1,19 @@
 # Meta-Controller
 
-This repository contains official pytorch implementation for [Meta-Controller: Few-Shot Imitation of Unseen Embodiments and Tasks in Continuous Control](https://openreview.net/pdf?id=M5D5rMwLjj) (NeurIPS 2024).
+This repository contains official pytorch implementation for [Meta-Controller: Few-Shot Imitation of Unseen Embodiments and Tasks in Continuous Control](https://openreview.net/pdf?id=M5D5rMwLjj) (NeurIPS 2024) using Gaudi-v2.
 ![image-metacon](https://github.com/SeongwoongCho/meta-controller/blob/main/MetaControllerOverview.png)
 
+## Issues
+Currently, error occurs in the evaluation loop. Please run the code with `-ne` or `--no-eval` flag. 
+
 ## Setup
+### Dependencies
+Since habana_framework library collides under pytorch_lightning<2.0, the libary versions on Gaudi-v2 implementation are different with CUDA-based implementation.
+Install all required libraries: 
+```
+pip install -r requirements.txdt
+```
+
 ### Dataset
 Prepare meta-training and downstream datasets (Replay buffers of DrQv2 agents) from [Here](https://drive.google.com/drive/folders/1OFfkNOTbb8fTrEzdz4sNM0UEIgnAqSrQ?usp=sharing). The directory structure looks like:
 ```
